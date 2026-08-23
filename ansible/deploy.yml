@@ -7,26 +7,23 @@
       package:
         name: docker
         state: present
-
     - name: Start and enable Docker
       service:
         name: docker
         state: started
         enabled: true
-
     - name: Add ec2-user to docker group
       user:
         name: ec2-user
         groups: docker
         append: true
-
     - name: Copy app files to server
       copy:
         src: ../app/
         dest: /home/ec2-user/app/
-
     - name: Build Docker image
       command: docker build -t saturday-app /home/ec2-user/app
-
+    - name: Remove existing container if present
+      shell: docker rm -f saturday-app || true
     - name: Run the container
       command: docker run -d -p 80:80 --name saturday-app saturday-app

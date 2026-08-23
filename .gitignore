@@ -1,0 +1,22 @@
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.backup
+*.tfvars
+.terraform.lock.hcl
+
+# Ansible
+*.retry
+
+# SSH keys / secrets
+*.pem
+*.key
+.env
+
+# OS junk
+.DS_Store
+Thumbs.db
+
+# Large installers / binaries — don't belong in the repo
+awscliv2.zip
+aws/

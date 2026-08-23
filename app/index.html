@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RACK/01 — Terraform + Ansible + Docker Deployment</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700;800&family=Rajdhani:wght@600;700&display=swap');
+
+  :root{
+    --ink:#0B0E14;
+    --panel:#11161F;
+    --panel-2:#161C27;
+    --line:#232B38;
+    --steel:#8A94A6;
+    --steel-dim:#586173;
+    --amber:#FFB000;
+    --cyan:#4FD1C5;
+    --red:#FF5D5D;
+    --mono: 'JetBrains Mono', monospace;
+    --display: 'Rajdhani', sans-serif;
+  }
+
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{
+    margin:0;
+    background:
+      radial-gradient(1200px 600px at 15% -10%, rgba(255,176,0,0.06), transparent 60%),
+      radial-gradient(1000px 500px at 90% 10%, rgba(79,209,197,0.05), transparent 55%),
+      var(--ink);
+    color:var(--steel);
+    font-family:var(--mono);
+    line-height:1.5;
+    -webkit-font-smoothing:antialiased;
+  }
+
+  ::selection{ background:var(--amber); color:#1a1200; }
+
+  a{ color:var(--cyan); }
+
+  .wrap{
+    max-width:920px;
+    margin:0 auto;
+    padding:48px 20px 96px;
+  }
+
+  /* ---- Rack unit shell used for every section ---- */
+  .rack{
+    position:relative;
+    background:linear-gradient(180deg, var(--panel), var(--panel-2));
+    border:1px solid var(--line);
+    border-radius:6px;
+    margin-bottom:22px;
+    padding:28px 40px;
+  }
+  .rack::before, .rack::after{
+    content:"";
+    position:absolute;
+    top:16px;
+    width:10px; height:10px;
+    border-radius:50%;
+    background:radial-gradient(circle at 35% 30%, #3a4354, #10141c 70%);
+    box-shadow: inset 0 0 0 1px #060809;
+  }
+  .rack::before{ left:14px; }
+  .rack::after{ right:14px; }
+  .rack .u-tag{
+    position:absolute;
+    top:14px; left:38px;
+    font-size:11px;
+    letter-spacing:.12em;
+    color:var(--steel-dim);
+  }
+  .rack .led{
+    position:absolute;
+    top:17px; right:38px;
+    display:flex; align-items:center; gap:6px;
+    font-size:10px; letter-spacing:.1em;
+    color:var(--steel-dim);
+  }
+  .dot{
+    width:7px; height:7px; border-radius:50%;
+    background:var(--cyan);
+    box-shadow:0 0 8px var(--cyan);
+    animation: blink 2.4s ease-in-out infinite;
+  }
+  .dot.amber{ background:var(--amber); box-shadow:0 0 8px var(--amber); animation-delay:.4s;}
+  @keyframes blink{ 0%,100%{opacity:1;} 50%{opacity:.35;} }
+
+  @media (prefers-reduced-motion: reduce){
+    .dot{ animation:none; }
+    html{ scroll-behavior:auto; }
+  }
+
+  /* ---- Header / Hero ---- */
+  .hero{ padding-top:44px; }
+  .eyebrow{
+    color:var(--amber);
+    font-size:12px;
+    letter-spacing:.18em;
+    text-transform:uppercase;
+    margin:0 0 14px;
+  }
+  h1{
+    font-family:var(--display);
+    font-weight:700;
+    font-size:clamp(30px, 5vw, 46px);
+    color:#EDEFF3;
+    margin:0 0 8px;
+    letter-spacing:.01em;
+  }
+  .sub{
+    color:var(--steel);
+    font-size:14.5px;
+    max-width:60ch;
+    margin:0 0 22px;
+  }
+  .badges{ display:flex; flex-wrap:wrap; gap:8px; margin-bottom:6px; }
+  .badge{
+    font-size:11px;
+    padding:5px 10px;
+    border:1px solid var(--line);
+    border-radius:4px;
+    color:var(--steel);
+    letter-spacing:.04em;
+  }
+  .badge b{ color:var(--amber); font-weight:600; }
+
+  /* ---- Boot sequence ---- */
+  .boot{
+    font-size:13px;
+    color:var(--steel-dim);
+    white-space:pre-wrap;
+    min-height:110px;
+  }
+  .boot .ok{ color:var(--cyan); }
+  .boot .cursor{
+    display:inline-block; width:8px; height:14px;
+    background:var(--amber); vertical-align:-2px;
+    animation: blinkc 1s step-end infinite;
+  }
+  @keyframes blinkc{ 50%{opacity:0;} }
+
+  /* ---- Stat grid ---- */
+  .grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fit, minmax(180px, 1fr));
+    gap:16px;
+    margin-top:6px;
+  }
+  .stat{
+    border:1px solid var(--line);
+    border-radius:4px;
+    padding:14px 16px;
+    background:rgba(255,255,255,0.012);
+  }
+  .stat .label{
+    font-size:10.5px;
+    letter-spacing:.1em;
+    text-transform:uppercase;
+    color:var(--steel-dim);
+    margin-bottom:8px;
+  }
+  .stat .value{
+    font-family:var(--display);
+    font-size:22px;
+    font-weight:700;
+    color:#EDEFF3;
+  }
+  .stat .value.amber{ color:var(--amber); }
+  .stat .value.cyan{ color:var(--cyan); }
+
+  /* ---- Section titles ---- */
+  h2{
+    font-family:var(--display);
+    font-size:20px;
+    font-weight:700;
+    color:#EDEFF3;
+    letter-spacing:.02em;
+    margin:0 0 16px;
+  }
+  h2 .idx{ color:var(--steel-dim); font-weight:600; margin-right:8px; }
+
+  /* ---- Pipeline flow ---- */
+  .flow{
+    display:flex;
+    flex-wrap:wrap;
+    align-items:center;
+    gap:10px;
+    font-size:13px;
+  }
+  .node{
+    border:1px solid var(--line);
+    border-radius:4px;
+    padding:10px 14px;
+    color:#EDEFF3;
+    background:rgba(255,255,255,0.015);
+    white-space:nowrap;
+  }
+  .arrow{ color:var(--steel-dim); }
+  .tag-inline{
+    font-size:10.5px; color:var(--steel-dim);
+    display:block; margin-top:2px;
+  }
+
+  /* ---- Terminal ---- */
+  .term{
+    background:#080B10;
+    border:1px solid var(--line);
+    border-radius:4px;
+    padding:16px 18px;
+    font-size:13px;
+  }
+  .term .line{ margin:2px 0; }
+  .term .prompt{ color:var(--amber); }
+  .term .out{ color:var(--steel); }
+  .term-input-row{ display:flex; align-items:center; gap:8px; margin-top:8px; }
+  .term-input-row .prompt{ flex-shrink:0; }
+  #term-input{
+    flex:1;
+    background:transparent;
+    border:none;
+    outline:none;
+    color:#EDEFF3;
+    font-family:var(--mono);
+    font-size:13px;
+  }
+  .term-hint{ color:var(--steel-dim); font-size:11px; margin-top:10px; }
+
+  footer{
+    text-align:center;
+    color:var(--steel-dim);
+    font-size:11.5px;
+    margin-top:32px;
+    letter-spacing:.03em;
+  }
+  footer a{ color:var(--steel); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- HERO / RACK UNIT 01 -->
+  <section class="rack hero">
+    <span class="u-tag">U01</span>
+    <span class="led"><span class="dot amber"></span>PWR</span>
+    <p class="eyebrow">// deployment console</p>
+    <h1>Terraform + Ansible + Docker</h1>
+    <p class="sub">One push provisions the box, configures it, and ships the container. This page is served by that exact pipeline — no manual steps between <code>git push</code> and a live app.</p>
+    <div class="badges">
+      <span class="badge">▲ <b>Terraform</b> provisions</span>
+      <span class="badge">⚙ <b>Ansible</b> configures</span>
+      <span class="badge">◧ <b>Docker</b> runs</span>
+      <span class="badge">☁ <b>AWS EC2</b> t3.micro</span>
+    </div>
+    <div class="boot" id="boot"></div>
+  </section>
+
+  <!-- STATUS -->
+  <section class="rack">
+    <span class="u-tag">U02</span>
+    <span class="led"><span class="dot"></span>OK</span>
+    <h2><span class="idx">01</span>Deployment status</h2>
+    <div class="grid">
+      <div class="stat">
+        <div class="label">Instance type</div>
+        <div class="value">t3.micro</div>
+      </div>
+      <div class="stat">
+        <div class="label">Region</div>
+        <div class="value">us-east-1</div>
+      </div>
+      <div class="stat">
+        <div class="label">Deployed since</div>
+        <div class="value cyan" id="deploy-date">—</div>
+      </div>
+      <div class="stat">
+        <div class="label">Uptime</div>
+        <div class="value amber" id="uptime">—</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PIPELINE -->
+  <section class="rack">
+    <span class="u-tag">U03</span>
+    <span class="led"><span class="dot amber"></span>RUN</span>
+    <h2><span class="idx">02</span>How it ships</h2>
+    <div class="flow">
+      <div class="node">git push<span class="tag-inline">trigger</span></div>
+      <span class="arrow">→</span>
+      <div class="node">terraform apply<span class="tag-inline">provisions EC2 + security group</span></div>
+      <span class="arrow">→</span>
+      <div class="node">ansible-playbook<span class="tag-inline">installs Docker over SSH</span></div>
+      <span class="arrow">→</span>
+      <div class="node">docker run<span class="tag-inline">serves app on :80</span></div>
+      <span class="arrow">→</span>
+      <div class="node">you, right now<span class="tag-inline">reading this</span></div>
+    </div>
+  </section>
+
+  <!-- ABOUT / PROJECT STORY -->
+  <section class="rack">
+    <span class="u-tag">U04</span>
+    <span class="led"><span class="dot"></span>LOG</span>
+    <h2><span class="idx">03</span>What this is</h2>
+    <p class="sub" style="max-width:68ch;">
+      A self-contained proof that a box can go from "doesn't exist" to "serving traffic" without a human touching a console.
+      <strong style="color:#EDEFF3;">Terraform</strong> declares the infrastructure — the EC2 instance, its security group, its networking — as code that can be reviewed, versioned, and destroyed as cleanly as it was created.
+      <strong style="color:#EDEFF3;">Ansible</strong> then reaches over SSH and brings that blank box to a known, repeatable state: installs Docker, pulls the image, gets it running.
+      <strong style="color:#EDEFF3;">Docker</strong> keeps the app itself portable — the same container that runs here would run identically on a laptop, a Raspberry Pi, or a fleet of production servers.
+    </p>
+    <p class="sub" style="max-width:68ch;">
+      The point isn't the app on screen — it's everything behind it. This page exists to make that invisible work visible: every section above and below is a real piece of the pipeline that shipped it.
+    </p>
+  </section>
+
+  <!-- STACK DEEP DIVE -->
+  <section class="rack">
+    <span class="u-tag">U05</span>
+    <span class="led"><span class="dot amber"></span>CFG</span>
+    <h2><span class="idx">04</span>What each layer owns</h2>
+    <div class="grid">
+      <div class="stat">
+        <div class="label">Terraform</div>
+        <div class="value" style="font-size:14px; line-height:1.5; color:var(--steel);">EC2 instance, security group (SSH + HTTP), key pair, state as code</div>
+      </div>
+      <div class="stat">
+        <div class="label">Ansible</div>
+        <div class="value" style="font-size:14px; line-height:1.5; color:var(--steel);">Docker install, image pull, container lifecycle, idempotent reruns</div>
+      </div>
+      <div class="stat">
+        <div class="label">Docker</div>
+        <div class="value" style="font-size:14px; line-height:1.5; color:var(--steel);">App runtime, port 80 exposure, identical behavior anywhere</div>
+      </div>
+      <div class="stat">
+        <div class="label">GitHub Actions</div>
+        <div class="value" style="font-size:14px; line-height:1.5; color:var(--steel);">Validates every Terraform change before it can be applied</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CHALLENGES / LESSONS -->
+  <section class="rack">
+    <span class="u-tag">U06</span>
+    <span class="led"><span class="dot"></span>ERR</span>
+    <h2><span class="idx">05</span>What actually went wrong</h2>
+    <p class="sub" style="max-width:68ch;">
+      Nothing here shipped on the first try, and that's the more honest part of the story.
+    </p>
+    <div class="grid">
+      <div class="stat">
+        <div class="label">VM networking</div>
+        <div class="value" style="font-size:13.5px; line-height:1.5; color:var(--steel); font-weight:500;">Adapter left on host-only — no DHCP lease, no route out. Fixed at the hypervisor, not inside the guest OS.</div>
+      </div>
+      <div class="stat">
+        <div class="label">Local browser</div>
+        <div class="value" style="font-size:13.5px; line-height:1.5; color:var(--steel); font-weight:500;">curl worked, Chrome didn't — a system proxy setting Chrome honored and curl ignored.</div>
+      </div>
+      <div class="stat">
+        <div class="label">Git auth</div>
+        <div class="value" style="font-size:13.5px; line-height:1.5; color:var(--steel); font-weight:500;">Password auth over HTTPS was rejected — GitHub requires a scoped personal access token instead.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- TERMINAL -->
+  <section class="rack">
+    <span class="u-tag">U07</span>
+    <span class="led"><span class="dot"></span>TTY</span>
+    <h2><span class="idx">06</span>Console</h2>
+    <div class="term" id="term">
+      <div class="line out">Type <span style="color:#EDEFF3">help</span> for available commands.</div>
+      <div id="term-log"></div>
+      <div class="term-input-row">
+        <span class="prompt">derick@saturday-project:~$</span>
+        <input id="term-input" type="text" autocomplete="off" spellcheck="false" />
+      </div>
+    </div>
+    <div class="term-hint">try: whoami · stack · uptime · about · contact · clear</div>
+  </section>
+
+  <footer>
+    Built by <a href="https://github.com/UncleD0886475978" target="_blank" rel="noopener">Derick / SIM</a>
+    · source at <a href="https://github.com/UncleD0886475978/saturday-project" target="_blank" rel="noopener">saturday-project</a>
+  </footer>
+
+</div>
+
+<script>
+  // ---- Boot sequence ----
+  const bootLines = [
+    ["$ terraform init", null],
+    ["Initializing provider plugins...", "ok"],
+    ["$ terraform apply", null],
+    ["aws_instance.app: Creation complete", "ok"],
+    ["$ ansible-playbook -i inventory.ini deploy.yml", null],
+    ["PLAY RECAP  ok=6  changed=4  failed=0", "ok"],
+    ["$ docker run -d -p 80:80 app:latest", null],
+    ["Container started. Listening on :80", "ok"],
+  ];
+  const bootEl = document.getElementById("boot");
+  let li = 0;
+  function typeLine(){
+    if(li >= bootLines.length){
+      bootEl.innerHTML += '<span class="cursor"></span>';
+      return;
+    }
+    const [text, cls] = bootLines[li];
+    const span = document.createElement("div");
+    span.textContent = text;
+    if(cls) span.classList.add(cls);
+    bootEl.appendChild(span);
+    li++;
+    setTimeout(typeLine, 260);
+  }
+  typeLine();
+
+  // ---- Deploy date / uptime (honest: elapsed time since a fixed deploy timestamp) ----
+  const DEPLOY_TS = new Date("2026-08-23T09:32:00Z").getTime();
+  document.getElementById("deploy-date").textContent =
+    new Date(DEPLOY_TS).toISOString().slice(0,10);
+
+  function pad(n){ return String(n).padStart(2,"0"); }
+  function renderUptime(){
+    const diff = Math.max(0, Date.now() - DEPLOY_TS);
+    const s = Math.floor(diff/1000);
+    const days = Math.floor(s/86400);
+    const hrs = Math.floor((s%86400)/3600);
+    const mins = Math.floor((s%3600)/60);
+    const secs = s%60;
+    document.getElementById("uptime").textContent =
+      `${days}d ${pad(hrs)}h ${pad(mins)}m ${pad(secs)}s`;
+  }
+  renderUptime();
+  setInterval(renderUptime, 1000);
+
+  // ---- Terminal ----
+  const input = document.getElementById("term-input");
+  const log = document.getElementById("term-log");
+  const commands = {
+    help: "Available: whoami, stack, uptime, about, contact, clear",
+    whoami: "derick — a.k.a. SIM. IT / cloud infrastructure.",
+    stack: "Terraform · Ansible · Docker · AWS EC2 · GitHub Actions",
+    about: "This box was provisioned, configured, and deployed with zero manual steps. See the repo README for the full pipeline.",
+    contact: "github.com/UncleD0886475978",
+  };
+  function printLine(text, isPrompt){
+    const div = document.createElement("div");
+    div.className = "line out";
+    div.textContent = (isPrompt ? "derick@saturday-project:~$ " : "") + text;
+    log.appendChild(div);
+    term.scrollTop = term.scrollHeight;
+  }
+  input.addEventListener("keydown", (e) => {
+    if(e.key !== "Enter") return;
+    const raw = input.value.trim();
+    if(!raw) return;
+    printLine(raw, true);
+    const cmd = raw.toLowerCase();
+    if(cmd === "clear"){
+      log.innerHTML = "";
+    } else if(cmd === "uptime"){
+      printLine(document.getElementById("uptime").textContent, false);
+    } else if(commands[cmd]){
+      printLine(commands[cmd], false);
+    } else {
+      printLine(`command not found: ${raw} (try "help")`, false);
+    }
+    input.value = "";
+  });
+</script>
+</body>
+</html>
